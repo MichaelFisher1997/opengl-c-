@@ -53,6 +53,17 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
 
   // 6. Mark as running
   m_isRunning = true;
+
+  float positions[6] = {
+   -0.5f, -0.5f, 
+    0.0f, 0.5f,
+    0.5f, -0.5f
+  }; 
+  unsigned int buffer;
+  glGenBuffers(1, &buffer);
+  glBindBuffer(GL_ARRAY_BUFFER, buffer); //select buffer called 'buffer'
+  glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), positions, GL_STATIC_DRAW); // assigne buffer size, static as we use many times, but does not change
+  //
 }
 
 SdlWindow::~SdlWindow() {
@@ -141,6 +152,7 @@ void SdlWindow::render() {
   glClear(GL_COLOR_BUFFER_BIT);
 
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
+  glDrawArrays(GL_TRIANGLES, 0, 3);
 
   // Swap buffers
   SDL_GL_SwapWindow(m_window);

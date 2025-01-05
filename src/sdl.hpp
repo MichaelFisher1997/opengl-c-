@@ -1,6 +1,14 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+// Include the OpenGL headers (these may vary by system)
+#if defined(__APPLE__)
+  #include <OpenGL/gl3.h>  // On macOS, <OpenGL/gl3.h> is often used
+#else
+  #include <GL/glew.h>     // or <glad/glad.h> if using GLAD
+#endif
+
+#include <iostream>
 
 // Forward declaration of classes and structs if needed
 // class SomethingElse;
@@ -27,6 +35,7 @@ private:
     bool          m_isFullscreen; 
     int           m_width;
     int           m_height;
+    SDL_GLContext  m_glContext;
 
     // Private methods
     void processEvents();

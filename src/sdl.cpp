@@ -8,50 +8,70 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
     m_isFullscreen(false),
     m_width(width),
     m_height(height),
-    m_glContect(nullptr)
+    m_glContext(nullptr)
 {
   // 1. Set attributes
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-  // 2. Create the window
-  m_window = SDL_CreateWindow(
-    title,
-    SDL_WINDOWPOS_CENTERED,
-    SDL_WINDOWPOS_CENTERED,
-    width,
-    height,
-    SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
-  );
+  // 2. Create the window with OpenGL flag
+    m_window = SDL_CreateWindow(title,
+      SDL_WINDOWPOS_CENTERED,
+      SDL_WINDOWPOS_CENTERED,
+      width,
+      height,
+      SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+
   if (!m_window) {
     std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
     return;
   }
 
-  // 3. Create the renderer
-  m_renderer = SDL_CreateRenderer(m_window, -1, SDL_RENDERER_ACCELERATED);
-  if (!m_renderer) {
-    std::cerr << "Failed to create renderer: " << SDL_GetError() << std::endl;
-    return;
+  // 3. Create OpenGL context
+  m_glContext = SDL_GL_CreateContext(m_window);
+  if (!m_glContext) {
+      std::cerr << "Failed to create GL context: " << SDL_GetError() << std::endl;
+      return;
   }
+  // 4. Optionally init GLEW (if not on macOS core profile)
+  #ifndef __APPLE__
+  glewExperimental = GL_TRUE;
+  if (glewInit() != GLEW_OK) {
+      std::cerr << "Failed to init GLEW" << std::endl;
+      return;
+  }
+  #endif
 
-  // 4. If everything succeeded, mark the application as running
+  // 5. Set vsync (optional)
+  SDL_GL_SetSwapInterval(1);
+
+  // 6. Mark as running
+  m_isRunning = true;
   m_isRunning = true;
 }
 
 SdlWindow::~SdlWindow() {
-  // Cleanup
+  // If using SDL Renderer, destroy it. But if you’re purely using OpenGL, you might remove it.
   if (m_renderer) {
-    SDL_DestroyRenderer(m_renderer);
-    m_renderer = nullptr;
+      SDL_DestroyRenderer(m_renderer);
+      m_renderer = nullptr;
   }
+
+  // Delete the OpenGL context
+  if (m_glContext) {
+      SDL_GL_DeleteContext(m_glContext);
+      m_glContext = nullptr;
+  }
+
   if (m_window) {
-    SDL_DestroyWindow(m_window);
-    m_window = nullptr;
+      SDL_DestroyWindow(m_window);
+      m_window = nullptr;
   }
+
   SDL_Quit();
 }
+
 
 void SdlWindow::run() {
   while (m_isRunning) {
@@ -90,13 +110,14 @@ void SdlWindow::update() {
 }
 
 void SdlWindow::render() {
-  // Set background color to red
-  SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
-  SDL_RenderClear(m_renderer);
+  // Use GL calls instead of SDL’s renderer
+  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT);
 
-  // You can draw shapes, textures, etc. here
+  // TODO: Draw with OpenGL here (shaders, triangles, etc.)
 
-  SDL_RenderPresent(m_renderer);
+  // Swap buffers
+  SDL_GL_SwapWindow(m_window);
 }
 
 void SdlWindow::change_res(int newWidth, int newHeight)

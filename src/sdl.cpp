@@ -21,7 +21,7 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       SDL_WINDOWPOS_CENTERED,
       width,
       height,
-      SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+      SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN| SDL_WINDOW_RESIZABLE);
 
   if (!m_window) {
     std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
@@ -100,6 +100,23 @@ SDL_Event event;
       if (event.key.keysym.sym == SDLK_ESCAPE) {
         std::cout << "Bye!" << std::endl;
         m_isRunning = false; //exit application
+      }
+    }
+    else if (event.type == SDL_WINDOWEVENT) {
+      if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+        // SDL gives the new width/height in event.window.data1/data2
+        int newWidth  = event.window.data1;
+        int newHeight = event.window.data2;
+
+        // Update your internal width/height (if you keep track)
+        m_width  = newWidth;
+        m_height = newHeight;
+
+        // Update the OpenGL viewport
+        glViewport(0, 0, newWidth, newHeight);
+
+        // (Optional) If you have a projection matrix, update it here as well
+        // e.g., recalc the aspect ratio for a perspective projection
       }
     }
   }

@@ -1,5 +1,5 @@
 {
-  description = "Zig Devshell";
+  description = "General SDL dev flake";
 
   inputs.devshell.url = "github:numtide/devshell";
   inputs.flake-utils.url = "github:numtide/flake-utils";

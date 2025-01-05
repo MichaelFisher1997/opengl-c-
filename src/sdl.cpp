@@ -1,3 +1,4 @@
+#include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include "sdl.hpp"
 #include <iostream>
 
@@ -8,7 +9,9 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
     m_isFullscreen(false),
     m_width(width),
     m_height(height),
-    m_glContext(nullptr)
+    m_glContext(nullptr),
+    m_windowedWidth(width),
+    m_windowedHeight(height)
 {
   // 1. Set attributes
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -37,17 +40,18 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   // 4. Optionally init GLEW (if not on macOS core profile)
   #ifndef __APPLE__
   glewExperimental = GL_TRUE;
+  GLenum glewErr = glewInit();
   if (glewInit() != GLEW_OK) {
-      std::cerr << "Failed to init GLEW" << std::endl;
+      std::cerr << "Failed to init GLEW" << glewGetErrorString(glewErr) << std::endl;
       return;
   }
+  glGetError();
   #endif
 
   // 5. Set vsync (optional)
   SDL_GL_SetSwapInterval(1);
 
   // 6. Mark as running
-  m_isRunning = true;
   m_isRunning = true;
 }
 
@@ -111,6 +115,11 @@ SDL_Event event;
         // Update your internal width/height (if you keep track)
         m_width  = newWidth;
         m_height = newHeight;
+        // If we are in windowed mode, update the "windowed" size.
+        if (!m_isFullscreen) {
+            m_windowedWidth  = newWidth;
+            m_windowedHeight = newHeight;
+        }
 
         // Update the OpenGL viewport
         glViewport(0, 0, newWidth, newHeight);
@@ -137,22 +146,26 @@ void SdlWindow::render() {
   SDL_GL_SwapWindow(m_window);
 }
 
-void SdlWindow::change_res(int newWidth, int newHeight)
-{
-  // Just call SDL_SetWindowSize
-  if (m_window) {
-    SDL_SetWindowSize(m_window, newWidth, newHeight);
-  }
-}
-
 void SdlWindow::setFullscreen(bool fullscreen) {
     if (m_window) {
         m_isFullscreen = fullscreen;
         if (m_isFullscreen) {
+            // Going TO fullscreen:
+            // (Optional) store the current size again, in case it changed
+            m_windowedWidth  = m_width;
+            m_windowedHeight = m_height;
+
             SDL_SetWindowFullscreen(m_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
         } else {
+            // Returning FROM fullscreen:
             SDL_SetWindowFullscreen(m_window, 0); // return to windowed
-            change_res(m_width, m_height);
+            // Now restore the window’s old size
+            SDL_SetWindowSize(m_window, m_windowedWidth, m_windowedHeight);
+
+            // Update m_width, m_height so they reflect the new (restored) size
+            m_width  = m_windowedWidth;
+            m_height = m_windowedHeight;
         }
     }
 }
+

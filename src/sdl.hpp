@@ -24,7 +24,6 @@ public:
     // Run the main loop
     void run();
 
-    void change_res(int newWidth, int newHeight);
     void setFullscreen(bool fullscreen);
 
 private:
@@ -35,7 +34,10 @@ private:
     bool          m_isFullscreen; 
     int           m_width;
     int           m_height;
+    int           m_windowedWidth;   // stored width before fullscreen
+    int           m_windowedHeight;  // stored height before fullscreen
     SDL_GLContext  m_glContext;
+    
 
     // Private methods
     void processEvents();

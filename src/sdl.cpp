@@ -7,13 +7,13 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
     m_isRunning(false),
     m_isFullscreen(false),
     m_width(width),
-    m_height(height)
+    m_height(height),
+    m_glContect(nullptr)
 {
-  // 1. Initialize SDL
-  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-    std::cerr << "Failed to init SDL2: " << SDL_GetError() << std::endl;
-    return;
-  }
+  // 1. Set attributes
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
   // 2. Create the window
   m_window = SDL_CreateWindow(
@@ -22,7 +22,7 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
     SDL_WINDOWPOS_CENTERED,
     width,
     height,
-    SDL_WINDOW_SHOWN
+    SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
   );
   if (!m_window) {
     std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;

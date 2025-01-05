@@ -54,16 +54,22 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   // 6. Mark as running
   m_isRunning = true;
 
-  float positions[6] = {
+  float positions[6] = { // vertex for a triangle
+    //x,y
    -0.5f, -0.5f, 
     0.0f, 0.5f,
     0.5f, -0.5f
   }; 
+  //vertex buffer
   unsigned int buffer;
   glGenBuffers(1, &buffer);
   glBindBuffer(GL_ARRAY_BUFFER, buffer); //select buffer called 'buffer'
   glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), positions, GL_STATIC_DRAW); // assigne buffer size, static as we use many times, but does not change
-  //
+  //vertext attributes / layout
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+
+
 }
 
 SdlWindow::~SdlWindow() {

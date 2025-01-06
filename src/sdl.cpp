@@ -1,10 +1,17 @@
 #include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include "sdl.hpp"
 #include <alloca.h>
+#include <cstdio>
 #include <iostream>
+#include <string>
+#include <fstream>
 //#include <iterator>
 #include <ostream>
 #include <string>
+#include <sstream>
+struct ShaderProgramSource {
+  std::string VertexSource, FragmentSource;
+};
 
 SdlWindow::SdlWindow(const char* title, int width, int height)
   : m_window(nullptr),
@@ -73,26 +80,8 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
 
-  std::string vertexShader = 
-    "#version 330 core\n"
-    "\n"
-    "layout(location = 0) in vec4 position;\n"
-    "\n"
-    "void main()\n"
-    "{\n"
-    " gl_Position = position;\n"
-    "}\n";
-
-  std::string fragmentShader = 
-    "#version 330 core\n"
-    "\n"
-    "layout(location = 0) out vec4 color;\n"
-    "\n"
-    "void main()\n"
-    "{\n"
-    " color = vec4(1.0, 0.0, 0.0, 1.0);\n"
-    "}\n";
-  unsigned int shader = createShader(vertexShader, fragmentShader);
+  ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
+  unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
   glUseProgram(shader);
 
 }
@@ -254,3 +243,38 @@ unsigned int SdlWindow::createShader(const std::string& vertexShader, const std:
   return program;
 
 }
+SdlWindow::ShaderProgramSource SdlWindow::parseShader(const std::string& filepath) {
+  //can be changed to c standard which is a bit faster
+  std::ifstream stream(filepath);
+  if (!stream.is_open()) {
+      std::cerr << "parseShader ERROR: Could not open file " << filepath << std::endl;
+      // Return empty (or handle however you prefer)
+      return {"", ""};
+  }
+
+  enum class ShaderType {
+    NONE = -1, VERTEX = 0, FRAGMENT = 1
+  };
+  std::string line;
+  std::stringstream ss[2]; //vertex - fragment
+  ShaderType type = ShaderType::NONE;
+
+  while (getline(stream, line)) {
+    if (line.find("#shader") != std::string::npos) {
+      if (line.find("vertex") != std::string::npos) {
+        type = ShaderType::VERTEX;
+        
+      }
+      else if (line.find("fragment") != std::string::npos) {
+        type = ShaderType::FRAGMENT;
+
+      }
+    }
+    else {
+      ss[(int)type] << line << '\n';
+    }
+  }
+  return {ss[0].str(), ss[1].str() };
+  
+}
+

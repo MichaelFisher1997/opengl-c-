@@ -10,6 +10,9 @@
 #endif
 
 //#include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
 
 // Forward declaration of classes and structs if needed
 // class SomethingElse;
@@ -26,6 +29,14 @@ public:
   void run();
   unsigned int compileShader(unsigned int type, const std::string& source);
   unsigned int createShader(const std::string& vetexShader, const std::string& fragmentShader);  
+  // for spliting our shaders
+  //struct ShaderProgramSource {
+  //  std::string VetexSource, FragmentSource;
+  struct ShaderProgramSource {
+    std::string VertexSource;
+    std::string FragmentSource;
+  };
+  ShaderProgramSource parseShader(const std::string& filepath);
 
   void setFullscreen(bool fullscreen);
 

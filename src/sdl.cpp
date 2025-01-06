@@ -65,20 +65,31 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   // 6. Mark as running
   m_isRunning = true;
 
-  float positions[6] = { // vertex for a triangle
+  float positions[] = { // vertex for a triangle
     //x,y
-   -0.5f, -0.5f, 
-    0.0f, 0.5f,
-    0.5f, -0.5f
+   -0.5f, -0.5f, // 0 
+    0.5f, -0.5f, // 1
+    0.5f,  0.5f, //2
+    -0.5f,  0.5f // 3
   }; 
+
+  unsigned int indices[] = {
+      0, 1, 2,
+      2, 3, 0
+  };
   //vertex buffer
   unsigned int buffer;
   glGenBuffers(1, &buffer);
   glBindBuffer(GL_ARRAY_BUFFER, buffer); //select buffer called 'buffer'
-  glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), positions, GL_STATIC_DRAW); // assigne buffer size, static as we use many times, but does not change
+  glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW); // assigne buffer size, static as we use many times, but does not change
   //vertext attributes / layout
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+  //indext beffer
+  unsigned int ibo; //indext buffer object
+  glGenBuffers(1, &ibo);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo); //select buffer called 'buffer'
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW); // assigne buffer size, static as we use many times, but does not change
 
   ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
   unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
@@ -173,8 +184,7 @@ void SdlWindow::render() {
   glClear(GL_COLOR_BUFFER_BIT);
 
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
-  glDrawArrays(GL_TRIANGLES, 0, 3);
-
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   // Swap buffers
   SDL_GL_SwapWindow(m_window);
 }

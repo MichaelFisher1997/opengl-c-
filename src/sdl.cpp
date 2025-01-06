@@ -1,6 +1,10 @@
 #include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include "sdl.hpp"
+#include <alloca.h>
 #include <iostream>
+//#include <iterator>
+#include <ostream>
+#include <string>
 
 SdlWindow::SdlWindow(const char* title, int width, int height)
   : m_window(nullptr),
@@ -69,6 +73,27 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
 
+  std::string vertexShader = 
+    "#version 330 core\n"
+    "\n"
+    "layout(location = 0) in vec4 position;\n"
+    "\n"
+    "void main()\n"
+    "{\n"
+    " gl_Position = position;\n"
+    "}\n";
+
+  std::string fragmentShader = 
+    "#version 330 core\n"
+    "\n"
+    "layout(location = 0) out vec4 color;\n"
+    "\n"
+    "void main()\n"
+    "{\n"
+    " color = vec4(1.0, 0.0, 0.0, 1.0);\n"
+    "}\n";
+  unsigned int shader = createShader(vertexShader, fragmentShader);
+  glUseProgram(shader);
 
 }
 
@@ -187,3 +212,44 @@ void SdlWindow::setFullscreen(bool fullscreen) {
     }
 }
 
+unsigned int SdlWindow::compileShader(unsigned int type, const std::string& source) {
+  unsigned int id = glCreateShader(type);
+  const char* src = source.c_str(); // <--- this string needs to exist when compiling/running
+  glShaderSource(id, 1, &src, nullptr);
+  glCompileShader(id);
+  //TODO: error handling
+  int result;
+  glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+  if (result == GL_FALSE) {
+    int length;
+    glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
+    char* message = (char*)alloca(length * sizeof(char)); //do i need to deallocate this??
+    glGetShaderInfoLog(id, length, &length, message);
+    std::cout << "Failed to compile" << (type == GL_VERTEX_SHADER ? "vertex":"fragment") << "shader" << std::endl; // print out what type of shader it is
+    std::cout << message << std::endl;
+    glDeleteShader(id);
+    return 0;
+
+  }
+  //
+  return id;
+
+  
+}
+
+unsigned int SdlWindow::createShader(const std::string& vertexShader, const std::string& fragmentShader) {
+  unsigned int program = glCreateProgram();
+  unsigned int vs = compileShader(GL_VERTEX_SHADER, vertexShader);
+  unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragmentShader);
+
+  glAttachShader(program, vs);
+  glAttachShader(program, fs);
+  glLinkProgram(program);
+  glValidateProgram(program);
+
+  glDeleteShader(vs);
+  glDeleteShader(fs);
+
+  return program;
+
+}

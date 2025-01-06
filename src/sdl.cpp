@@ -125,6 +125,7 @@ void SdlWindow::run() {
     update();
     render();
   }
+  glDeleteProgram(shader);
 }
 
 void SdlWindow::processEvents() {
@@ -225,7 +226,7 @@ unsigned int SdlWindow::compileShader(unsigned int type, const std::string& sour
     glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
     char* message = (char*)alloca(length * sizeof(char)); //do i need to deallocate this??
     glGetShaderInfoLog(id, length, &length, message);
-    std::cout << "Failed to compile" << (type == GL_VERTEX_SHADER ? "vertex":"fragment") << "shader" << std::endl; // print out what type of shader it is
+    std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex":"fragment") << " shader" << std::endl; // print out what type of shader it is
     std::cout << message << std::endl;
     glDeleteShader(id);
     return 0;

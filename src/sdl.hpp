@@ -39,6 +39,9 @@ public:
   ShaderProgramSource parseShader(const std::string& filepath);
 
   void setFullscreen(bool fullscreen);
+  void GLClearError();
+  bool GLLogCall();
+  
 
 private:
   // Private data members

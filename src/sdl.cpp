@@ -1,6 +1,7 @@
 #include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include "sdl.hpp"
 #include "colormod.h" 
+#include <SDL2/SDL_video.h>
 #include <alloca.h>
 #include <cstdio>
 #include <iostream>
@@ -22,7 +23,6 @@
     #include <signal.h>
     #define DEBUG_BREAK() raise(SIGTRAP)
 #endif
-
 
 // ASSERT macro that shows file, line, and the failed expression
 #define ASSERT(x)                                                      \
@@ -53,7 +53,10 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
     m_height(height),
     m_glContext(nullptr),
     m_windowedWidth(width),
-    m_windowedHeight(height)
+    m_windowedHeight(height),
+    r(0.0f),
+    location(),
+    increment(0.05f)
 {
   // 1. Set attributes
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -91,7 +94,7 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   #endif
 
   // 5. Set vsync (optional)
-  SDL_GL_SetSwapInterval(1);
+  SDL_GL_SetSwapInterval(1); //Vsync
 
   // 6. Mark as running
   m_isRunning = true;
@@ -125,6 +128,11 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
   unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
   GLCall(glUseProgram(shader));
+  
+  GLCall(int location = glGetUniformLocation(shader, "u_Color"));
+  ASSERT(location != -1); // -1 is an error
+  GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
+
 
 }
 
@@ -207,16 +215,24 @@ SDL_Event event;
 
 void SdlWindow::update() {
   // Update game/application logic here
+  if (r > 1.0f) {
+    increment = -0.05f;
+  } else if (r < 0.0f) {
+    increment = 0.05f;
+  }
+  r += increment;
 }
 
 void SdlWindow::render() {
   // Use GL calls instead of SDL’s renderer
-  GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
+  GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f)); //background
   GLCall(glClear(GL_COLOR_BUFFER_BIT));
 
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
+  GLCall(glUniform4f( location, r, 0.3f, 0.8f, 1.0f));
   //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr)); //macro assert for debugging
+  
   // Swap buffers
   SDL_GL_SwapWindow(m_window);
 }

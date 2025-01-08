@@ -53,7 +53,10 @@ private:
   int           m_height;
   int           m_windowedWidth;   // stored width before fullscreen
   int           m_windowedHeight;  // stored height before fullscreen
-  SDL_GLContext  m_glContext;
+  float         r;
+  int           location;
+  SDL_GLContext m_glContext;
+  float         increment; 
   // temp shader stuff
   std::string vetexShader;
   std::string fragmentShader;

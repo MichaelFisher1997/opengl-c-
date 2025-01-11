@@ -1,5 +1,6 @@
 #include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include "sdl.hpp"
+#include "VertexBufferLayout.h"
 #include "colormod.h" 
 #include <SDL2/SDL_video.h>
 #include <alloca.h>
@@ -54,9 +55,10 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
     m_glContext(nullptr),
     m_windowedWidth(width),
     m_windowedHeight(height),
-    r(0.0f),
+    r(0.5f),
     location(),
-    increment(0.05f)
+    increment(0.05f),
+    ib(nullptr, 0)
 {
   // 1. Set attributes
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -95,6 +97,7 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
 
   // 5. Set vsync (optional)
   SDL_GL_SetSwapInterval(1); //Vsync
+  SdlWindow::GLClearError();
 
   // 6. Mark as running
   m_isRunning = true;
@@ -111,27 +114,31 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       0, 1, 2,
       2, 3, 0
   };
-  //vertex buffer
-  unsigned int buffer;
-  GLCall(glGenBuffers(1, &buffer));
-  GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer)); //select buffer called 'buffer'
-  GLCall(glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW)); // assigne buffer size, static as we use many times, but does not change
-  //vertext attributes / layout
-  GLCall(glEnableVertexAttribArray(0));
-  GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
-  //indext beffer
-  unsigned int ibo; //indext buffer object
-  GLCall(glGenBuffers(1, &ibo));
-  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo)); //select buffer called 'buffer'
-  GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW)); // assigne buffer size, static as we use many times, but does not change
+
+  unsigned int vao; //vertext array object
+  GLCall(glGenVertexArrays(1, &vao));
+  GLCall(glBindVertexArray(vao));
+
+  VertexArray va;
+  VertexBuffer vb(positions, 4 * 2 * sizeof(float));
+  VertexBufferLayout layout;
+  layout.Push<float>(2);
+  va.AddBuffer(vb, layout);
+  
+  IndexBuffer ib(indices, 6); 
 
   ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
-  unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
-  GLCall(glUseProgram(shader));
+  unsigned int m_ShaderID = createShader(source.VertexSource, source.FragmentSource);
+  GLCall(glUseProgram(m_ShaderID));
   
-  GLCall(int location = glGetUniformLocation(shader, "u_Color"));
+  GLCall(int location = glGetUniformLocation(m_ShaderID, "u_Color"));
   ASSERT(location != -1); // -1 is an error
   GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
+
+  GLCall(glBindVertexArray(0));
+  GLCall(glUseProgram(0));
+  GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 
 
 }
@@ -153,7 +160,12 @@ SdlWindow::~SdlWindow() {
       SDL_DestroyWindow(m_window);
       m_window = nullptr;
   }
+  if (shader) {
+        glDeleteProgram(shader);
+        shader = 0;
+    }
 
+  delete &ib;
   SDL_Quit();
 }
 
@@ -226,10 +238,15 @@ void SdlWindow::update() {
 void SdlWindow::render() {
   // Use GL calls instead of SDL’s renderer
   GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f)); //background
+  //
   GLCall(glClear(GL_COLOR_BUFFER_BIT));
+  
+  GLCall(glUseProgram(shader));
+  GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
 
+  va.Bind();
+  ib.Bind();
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
-  GLCall(glUniform4f( location, r, 0.3f, 0.8f, 1.0f));
   //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr)); //macro assert for debugging
   

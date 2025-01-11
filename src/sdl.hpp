@@ -62,11 +62,11 @@ private:
   unsigned int buffer;
   unsigned int ibo;
   unsigned int vao;
-  IndexBuffer ib;  // pointer, no default constructor needed
   unsigned int  shader;
   unsigned int   location;
   VertexBufferLayout layout;
   VertexArray va;
+  IndexBuffer m_ib;
 
   // Private methods
   void processEvents();

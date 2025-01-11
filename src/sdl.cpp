@@ -63,7 +63,7 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
     r(0.5f),
     location(),
     increment(0.05f),
-    ib(nullptr,6)
+    m_ib(nullptr, 0)
 {
   // 1. Set attributes
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -120,13 +120,10 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       2, 3, 0
   };
 
-  //unsigned int vao; //vertext array object
-  //GLCall(glGenVertexArrays(1, &vao));
-  //GLCall(glBindVertexArray(vao));
-
   VertexArray va;
   VertexBuffer vb(positions, 4 * 2 * sizeof(float));
-  ib = IndexBuffer(indices, 6);
+  IndexBuffer ib(indices, 6);
+  m_ib = ib;
 
   VertexBufferLayout layout;
   layout.Push<float>(2);
@@ -255,7 +252,7 @@ void SdlWindow::render() {
   GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
 
   va.Bind();
-  ib.Bind();
+  m_ib.Bind();
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
   //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr)); //macro assert for debugging
@@ -363,7 +360,7 @@ SdlWindow::ShaderProgramSource SdlWindow::parseShader(const std::string& filepat
 }
 
 void SdlWindow::GLClearError() {
-  while (glGetError() != GL_NO_ERROR);
+  //while (glGetError() != GL_NO_ERROR);
     
 }
 

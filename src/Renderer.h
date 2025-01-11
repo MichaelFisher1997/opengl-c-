@@ -32,6 +32,6 @@
   x;\
   ASSERT(GLLogCall())
 
-
+#define INT2VOIDP(i) (void*)(uintptr_t)(i)
 void GLClearError();
 bool GLLogCall();

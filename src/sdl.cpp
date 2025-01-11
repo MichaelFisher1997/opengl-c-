@@ -13,6 +13,11 @@
 #include <string>
 #include <sstream>
 
+#include "Renderer.h"
+#include "VertexBuffer.h"
+#include "VertexArray.h"
+#include "IndexBuffer.h"
+
 #if defined(_MSC_VER)  // Microsoft Visual C++
     #include <intrin.h>
     #define DEBUG_BREAK() __debugbreak()
@@ -58,7 +63,7 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
     r(0.5f),
     location(),
     increment(0.05f),
-    ib(nullptr, 0)
+    ib(nullptr,6)
 {
   // 1. Set attributes
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -115,24 +120,30 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       2, 3, 0
   };
 
-  unsigned int vao; //vertext array object
-  GLCall(glGenVertexArrays(1, &vao));
-  GLCall(glBindVertexArray(vao));
+  //unsigned int vao; //vertext array object
+  //GLCall(glGenVertexArrays(1, &vao));
+  //GLCall(glBindVertexArray(vao));
 
   VertexArray va;
   VertexBuffer vb(positions, 4 * 2 * sizeof(float));
+  ib = IndexBuffer(indices, 6);
+
   VertexBufferLayout layout;
   layout.Push<float>(2);
+
   va.AddBuffer(vb, layout);
   
-  IndexBuffer ib(indices, 6); 
-
   ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
+
+  std::cout << "VERTEX" << std::endl << source.VertexSource << std::endl;
+  std::cout << "FRAGMENT" << std::endl << source.FragmentSource << std::endl;
+
   unsigned int m_ShaderID = createShader(source.VertexSource, source.FragmentSource);
   GLCall(glUseProgram(m_ShaderID));
   
-  GLCall(int location = glGetUniformLocation(m_ShaderID, "u_Color"));
+  GLCall(unsigned int location = glGetUniformLocation(m_ShaderID, "u_Color"));
   ASSERT(location != -1); // -1 is an error
+
   GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
 
   GLCall(glBindVertexArray(0));
@@ -165,7 +176,6 @@ SdlWindow::~SdlWindow() {
         shader = 0;
     }
 
-  delete &ib;
   SDL_Quit();
 }
 

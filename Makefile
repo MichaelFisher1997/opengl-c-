@@ -1,21 +1,38 @@
-CC = g++
-CFLAGS = -Iinclude -Wall -g
-LDFLAGS = -lSDL2 -lGL -lGLEW
+CC=clang++
+current_directory=$(shell pwd)
 
-SRC = src/main.cpp src/sdl.cpp
-OBJ = $(SRC:.cpp=.o)
-EXEC = opengl-app
+FRAMEWORKS=-framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
 
-all: $(EXEC)
+CFLAGS=-std=c++11
+CFLAGS+=-I$(current_directory)
+CFLAGS+=-I$(current_directory)/../external
 
-$(EXEC): $(OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS)
+LDFLAGS=-L$(current_directory)/../lib
+LDFLAGS+=-lglfw3
+LDFLAGS+=-lGLEW
+
+SOURCES=$(wildcard *.cpp)
+OBJECTS=$(patsubst %.cpp, %.o, $(SOURCES))
+
 
 %.o: %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c -o $@ $^
 
+default: debug
+
+app: $(OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(FRAMEWORKS) -o $@ $(OBJECTS)
+
+# Define debug and -g enables debug symbols
+debug: CFLAGS+=-DDEBUG -g
+debug: app
+
+release: app
+
+.PHONY: clean
 clean:
-	rm -f $(OBJ) $(EXEC)
+	rm -f *.o app
 
-run: all
-	./$(EXEC)
+.PHONY: debugger
+debugger: debug
+	PATH=/usr/bin /usr/bin/lldb ./app

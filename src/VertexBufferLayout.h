@@ -1,6 +1,7 @@
 #ifndef VERTEXBUFFERLAYOUT_H
 #define VERTEXBUFFERLAYOUT_H
 #include <vector>
+#include <GL/glew.h>
 #include "Renderer.h"
 struct VertexBufferElement {
     unsigned int type;

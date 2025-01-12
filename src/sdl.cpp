@@ -62,10 +62,11 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       r(0.5f),
       m_glContext(nullptr),
       increment(0.05f),
-      vao(0),
-      layout(nullptr),
-      va(nullptr),
-      m_ib(nullptr)
+      m_shader(0),
+      m_Location(-1),
+      m_IB(nullptr),
+      m_VB(nullptr),
+      m_VA(nullptr)
 {
 
   std::cout << "Step 0: hellow world" << std::endl;
@@ -136,17 +137,14 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       0, 1, 2,
       2, 3, 0
   };
-
-  VertexArray va;
-  VertexBuffer vb(positions, 4 * 2 * sizeof(float));
-  m_ib = new IndexBuffer(indices, 6);
-  
-
+  m_VA = new VertexArray();
+  m_VB = new VertexBuffer(positions, 4 * 2 * sizeof(float));
+  m_IB = new IndexBuffer(indices, 6);
 
   VertexBufferLayout layout;
   layout.Push<float>(2);
 
-  va.AddBuffer(vb, layout);
+  m_VA->AddBuffer(*m_VB, layout);
   
   ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
 
@@ -154,13 +152,15 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   std::cout << "FRAGMENT" << std::endl << source.FragmentSource << std::endl;
 
   unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
-  std::cout << "shader: " << shader << std::endl;
-  GLCall(glUseProgram(shader));
+  m_shader = shader;
+  std::cout << "shader: " << m_shader << std::endl;
+  std::cout << "shader: " << m_shader << std::endl;
+  GLCall(glUseProgram(m_shader));
   
-  GLCall(unsigned int location = glGetUniformLocation(shader, "u_Color"));
-  ASSERT(location != -1); // -1 is an error
+  GLCall(m_Location = glGetUniformLocation(m_shader, "u_Color"));
+  ASSERT(m_Location != -1); // -1 is an error
 
-  GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
+  GLCall(glUniform4f(m_Location, 0.8f, 0.3f, 0.8f, 1.0f));
 
   GLCall(glBindVertexArray(0));
   GLCall(glUseProgram(0));
@@ -186,13 +186,9 @@ SdlWindow::~SdlWindow() {
       SDL_DestroyWindow(m_window);
       m_window = nullptr;
   }
-  if (shader) {
-        glDeleteProgram(shader);
-        shader = 0;
-    }
-  if (m_ib) {
-        delete m_ib;
-        m_ib = nullptr;
+  if (m_shader) {
+        glDeleteProgram(m_shader);
+        m_shader = 0;
     }
 
   SDL_Quit();
@@ -205,7 +201,7 @@ void SdlWindow::run() {
     update();
     render();
   }
-  GLCall(glDeleteProgram(shader));
+  GLCall(glDeleteProgram(m_shader));
 }
 //
 void SdlWindow::processEvents() {
@@ -270,13 +266,14 @@ void SdlWindow::render() {
   //
   GLCall(glClear(GL_COLOR_BUFFER_BIT));
   
-  GLCall(glUseProgram(shader));
-  std::cout << "shader: " << shader << std::endl;
-  std::cout << "location: " << location << std::endl;
-  GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
+  GLCall(glUseProgram(m_shader));
+  std::cout << "m_shader: " << m_shader << std::endl;
+  std::cout << "location: " << m_Location << std::endl;
+  std::cout << "R: " << r << std::endl;
+  GLCall(glUniform4f(m_Location, r, 0.3f, 0.8f, 1.0f));
 
-  va->Bind();
-  m_ib->Bind();
+  m_VA->Bind();
+  m_IB->Bind();
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
   //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr)); //macro assert for debugging

@@ -4,10 +4,10 @@
 VertexArray::VertexArray()
 {
   std::cout << "VertexArray::VertexArray()" << std::endl;
-  std::cout << "m_RendererID: " << &m_RendererID << " " << m_RendererID << std::endl;
-  //GLCall(glGenVertexArrays(1, &m_RendererID));
-  glGenVertexArrays(1, &m_RendererID);
-  std::cout << "m_RendererID: " << &m_RendererID << " " << m_RendererID << std::endl;
+  std::cout << "m_RendererID: " << &m_RendererID  << std::endl;
+  GLCall(glGenVertexArrays(1, &m_RendererID));
+  //glGenVertexArrays(1, &m_RendererID);
+  std::cout << "m_RendererID: " << &m_RendererID << std::endl;
   if (!m_RendererID) {
     std::cerr << "Failed to generate VAO" << std::endl;
   }

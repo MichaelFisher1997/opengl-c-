@@ -9,10 +9,10 @@
   #include <GL/glew.h>     // or <glad/glad.h> if using GLAD
 #endif
 
-//#include <iostream>
-#include <fstream>
 #include <string>
-#include <sstream>
+#include "IndexBuffer.h"
+#include "VertexBufferLayout.h"
+#include "VertexArray.h"
 
 // Forward declaration of classes and structs if needed
 // class SomethingElse;
@@ -54,14 +54,14 @@ private:
   int           m_windowedWidth;   // stored width before fullscreen
   int           m_windowedHeight;  // stored height before fullscreen
   float         r;
-  int           location;
   SDL_GLContext m_glContext;
   float         increment; 
-  // temp shader stuff
-  std::string vetexShader;
-  std::string fragmentShader;
-  unsigned int shader;
-  
+//  // temp shader stuff
+  unsigned int  m_shader;
+  GLint   m_Location;
+  VertexArray* m_VA;
+  IndexBuffer* m_IB;
+  VertexBuffer* m_VB;
 
   // Private methods
   void processEvents();

@@ -1,5 +1,6 @@
 #include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include "sdl.hpp"
+#include "VertexBufferLayout.h"
 #include "colormod.h" 
 #include <SDL2/SDL_video.h>
 #include <alloca.h>
@@ -11,6 +12,11 @@
 #include <ostream>
 #include <string>
 #include <sstream>
+
+#include "Renderer.h"
+#include "VertexBuffer.h"
+#include "VertexArray.h"
+#include "IndexBuffer.h"
 
 #if defined(_MSC_VER)  // Microsoft Visual C++
     #include <intrin.h>
@@ -45,24 +51,31 @@ struct ShaderProgramSource {
 };
 
 SdlWindow::SdlWindow(const char* title, int width, int height)
-  : m_window(nullptr),
-    m_renderer(nullptr),
-    m_isRunning(false),
-    m_isFullscreen(false),
-    m_width(width),
-    m_height(height),
-    m_glContext(nullptr),
-    m_windowedWidth(width),
-    m_windowedHeight(height),
-    r(0.0f),
-    location(),
-    increment(0.05f)
+: m_window(nullptr),
+      m_renderer(nullptr),
+      m_isRunning(false),
+      m_isFullscreen(false),
+      m_width(width),
+      m_height(height),
+      m_windowedWidth(width),
+      m_windowedHeight(height),
+      r(0.5f),
+      m_glContext(nullptr),
+      increment(0.05f),
+      m_shader(0),
+      m_Location(-1),
+      m_IB(nullptr),
+      m_VB(nullptr),
+      m_VA(nullptr)
 {
+
+  std::cout << "Step 0: hellow world" << std::endl;
+
   // 1. Set attributes
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-
+  std::cout << "Step 1: SDL_GL_SetAttribute completed" << std::endl;
   // 2. Create the window with OpenGL flag
     m_window = SDL_CreateWindow(title,
       SDL_WINDOWPOS_CENTERED,
@@ -72,26 +85,39 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN| SDL_WINDOW_RESIZABLE);
 
   if (!m_window) {
-    std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
-    return;
+      std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
+      return;
   }
+  std::cout << "Step 2: SDL_CreateWindow completed" << std::endl;
 
-  // 3. Create OpenGL context
   m_glContext = SDL_GL_CreateContext(m_window);
   if (!m_glContext) {
       std::cerr << "Failed to create GL context: " << SDL_GetError() << std::endl;
       return;
   }
-  // 4. Optionally init GLEW (if not on macOS core profile)
+  std::cout << "Step 3: SDL_GL_CreateContext completed" << std::endl;
+
+  if (SDL_GL_MakeCurrent(m_window, m_glContext) != 0) {
+      std::cerr << "Failed to make GL context current: " << SDL_GetError() << std::endl;
+      return;
+  }
+  std::cout << "Step 4: SDL_GL_MakeCurrent completed" << std::endl;
+
   #ifndef __APPLE__
   glewExperimental = GL_TRUE;
   GLenum glewErr = glewInit();
-  if (glewInit() != GLEW_OK) {
-      std::cerr << "Failed to init GLEW" << glewGetErrorString(glewErr) << std::endl;
+  if (glewErr != GLEW_OK) {
+      std::cerr << "Failed to init GLEW: " << glewGetErrorString(glewErr) << std::endl;
       return;
   }
-  glGetError();
+  std::cout << "Step 5: GLEW initialized successfully" << std::endl;
+  glGetError(); // Clear GLEW's initial error
   #endif
+
+  std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+  std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+  std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
+
 
   // 5. Set vsync (optional)
   SDL_GL_SetSwapInterval(1); //Vsync
@@ -111,31 +137,38 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       0, 1, 2,
       2, 3, 0
   };
-  //vertex buffer
-  unsigned int buffer;
-  GLCall(glGenBuffers(1, &buffer));
-  GLCall(glBindBuffer(GL_ARRAY_BUFFER, buffer)); //select buffer called 'buffer'
-  GLCall(glBufferData(GL_ARRAY_BUFFER, 6 * 2 * sizeof(float), positions, GL_STATIC_DRAW)); // assigne buffer size, static as we use many times, but does not change
-  //vertext attributes / layout
-  GLCall(glEnableVertexAttribArray(0));
-  GLCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0));
-  //indext beffer
-  unsigned int ibo; //indext buffer object
-  GLCall(glGenBuffers(1, &ibo));
-  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo)); //select buffer called 'buffer'
-  GLCall(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW)); // assigne buffer size, static as we use many times, but does not change
+  m_VA = new VertexArray();
+  m_VB = new VertexBuffer(positions, 4 * 2 * sizeof(float));
+  m_IB = new IndexBuffer(indices, 6);
 
-  ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
-  unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
-  GLCall(glUseProgram(shader));
+  VertexBufferLayout layout;
+  layout.Push<float>(2);
+
+  m_VA->AddBuffer(*m_VB, layout);
   
-  GLCall(int location = glGetUniformLocation(shader, "u_Color"));
-  ASSERT(location != -1); // -1 is an error
-  GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
+  ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
+
+  std::cout << "VERTEX" << std::endl << source.VertexSource << std::endl;
+  std::cout << "FRAGMENT" << std::endl << source.FragmentSource << std::endl;
+
+  unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
+  m_shader = shader;
+  std::cout << "shader: " << m_shader << std::endl;
+  std::cout << "shader: " << m_shader << std::endl;
+  GLCall(glUseProgram(m_shader));
+  
+  GLCall(m_Location = glGetUniformLocation(m_shader, "u_Color"));
+  ASSERT(m_Location != -1); // -1 is an error
+
+  GLCall(glUniform4f(m_Location, 0.8f, 0.3f, 0.8f, 1.0f));
+
+  GLCall(glBindVertexArray(0));
+  GLCall(glUseProgram(0));
+  GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 
 
 }
-
 SdlWindow::~SdlWindow() {
   // If using SDL Renderer, destroy it. But if you’re purely using OpenGL, you might remove it.
   if (m_renderer) {
@@ -153,20 +186,24 @@ SdlWindow::~SdlWindow() {
       SDL_DestroyWindow(m_window);
       m_window = nullptr;
   }
+  if (m_shader) {
+        glDeleteProgram(m_shader);
+        m_shader = 0;
+    }
 
   SDL_Quit();
 }
-
-
+//
+//
 void SdlWindow::run() {
   while (m_isRunning) {
     processEvents(); 
     update();
     render();
   }
-  GLCall(glDeleteProgram(shader));
+  GLCall(glDeleteProgram(m_shader));
 }
-
+//
 void SdlWindow::processEvents() {
 SDL_Event event;
   while (SDL_PollEvent(&event)) {
@@ -212,7 +249,7 @@ SDL_Event event;
     }
   }
 }
-
+//
 void SdlWindow::update() {
   // Update game/application logic here
   if (r > 1.0f) {
@@ -222,21 +259,29 @@ void SdlWindow::update() {
   }
   r += increment;
 }
-
+//
 void SdlWindow::render() {
   // Use GL calls instead of SDL’s renderer
   GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f)); //background
+  //
   GLCall(glClear(GL_COLOR_BUFFER_BIT));
+  
+  GLCall(glUseProgram(m_shader));
+  std::cout << "m_shader: " << m_shader << std::endl;
+  std::cout << "location: " << m_Location << std::endl;
+  std::cout << "R: " << r << std::endl;
+  GLCall(glUniform4f(m_Location, r, 0.3f, 0.8f, 1.0f));
 
+  m_VA->Bind();
+  m_IB->Bind();
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
-  GLCall(glUniform4f( location, r, 0.3f, 0.8f, 1.0f));
   //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr)); //macro assert for debugging
   
   // Swap buffers
   SDL_GL_SwapWindow(m_window);
 }
-
+//
 void SdlWindow::setFullscreen(bool fullscreen) {
     if (m_window) {
         m_isFullscreen = fullscreen;
@@ -259,7 +304,7 @@ void SdlWindow::setFullscreen(bool fullscreen) {
         }
     }
 }
-
+//
 unsigned int SdlWindow::compileShader(unsigned int type, const std::string& source) {
   GLCall(unsigned int id = glCreateShader(type));
   const char* src = source.c_str(); // <--- this string needs to exist when compiling/running

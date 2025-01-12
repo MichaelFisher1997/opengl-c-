@@ -51,25 +51,30 @@ struct ShaderProgramSource {
 };
 
 SdlWindow::SdlWindow(const char* title, int width, int height)
-  : m_window(nullptr),
-    m_renderer(nullptr),
-    m_isRunning(false),
-    m_isFullscreen(false),
-    m_width(width),
-    m_height(height),
-    m_glContext(nullptr),
-    m_windowedWidth(width),
-    m_windowedHeight(height),
-    r(0.5f),
-    location(),
-    increment(0.05f),
-    m_ib(nullptr, 0)
+: m_window(nullptr),
+      m_renderer(nullptr),
+      m_isRunning(false),
+      m_isFullscreen(false),
+      m_width(width),
+      m_height(height),
+      m_windowedWidth(width),
+      m_windowedHeight(height),
+      r(0.5f),
+      m_glContext(nullptr),
+      increment(0.05f),
+      vao(0),
+      layout(nullptr),
+      va(nullptr),
+      m_ib(nullptr)
 {
+
+  std::cout << "Step 0: hellow world" << std::endl;
+
   // 1. Set attributes
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-
+  std::cout << "Step 1: SDL_GL_SetAttribute completed" << std::endl;
   // 2. Create the window with OpenGL flag
     m_window = SDL_CreateWindow(title,
       SDL_WINDOWPOS_CENTERED,
@@ -79,30 +84,42 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN| SDL_WINDOW_RESIZABLE);
 
   if (!m_window) {
-    std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
-    return;
+      std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
+      return;
   }
+  std::cout << "Step 2: SDL_CreateWindow completed" << std::endl;
 
-  // 3. Create OpenGL context
   m_glContext = SDL_GL_CreateContext(m_window);
   if (!m_glContext) {
       std::cerr << "Failed to create GL context: " << SDL_GetError() << std::endl;
       return;
   }
-  // 4. Optionally init GLEW (if not on macOS core profile)
+  std::cout << "Step 3: SDL_GL_CreateContext completed" << std::endl;
+
+  if (SDL_GL_MakeCurrent(m_window, m_glContext) != 0) {
+      std::cerr << "Failed to make GL context current: " << SDL_GetError() << std::endl;
+      return;
+  }
+  std::cout << "Step 4: SDL_GL_MakeCurrent completed" << std::endl;
+
   #ifndef __APPLE__
   glewExperimental = GL_TRUE;
   GLenum glewErr = glewInit();
-  if (glewInit() != GLEW_OK) {
-      std::cerr << "Failed to init GLEW" << glewGetErrorString(glewErr) << std::endl;
+  if (glewErr != GLEW_OK) {
+      std::cerr << "Failed to init GLEW: " << glewGetErrorString(glewErr) << std::endl;
       return;
   }
-  glGetError();
+  std::cout << "Step 5: GLEW initialized successfully" << std::endl;
+  glGetError(); // Clear GLEW's initial error
   #endif
+
+  std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+  std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+  std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
+
 
   // 5. Set vsync (optional)
   SDL_GL_SetSwapInterval(1); //Vsync
-  SdlWindow::GLClearError();
 
   // 6. Mark as running
   m_isRunning = true;
@@ -122,8 +139,9 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
 
   VertexArray va;
   VertexBuffer vb(positions, 4 * 2 * sizeof(float));
-  IndexBuffer ib(indices, 6);
-  m_ib = ib;
+  m_ib = new IndexBuffer(indices, 6);
+  
+
 
   VertexBufferLayout layout;
   layout.Push<float>(2);
@@ -135,10 +153,11 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   std::cout << "VERTEX" << std::endl << source.VertexSource << std::endl;
   std::cout << "FRAGMENT" << std::endl << source.FragmentSource << std::endl;
 
-  unsigned int m_ShaderID = createShader(source.VertexSource, source.FragmentSource);
-  GLCall(glUseProgram(m_ShaderID));
+  unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
+  std::cout << "shader: " << shader << std::endl;
+  GLCall(glUseProgram(shader));
   
-  GLCall(unsigned int location = glGetUniformLocation(m_ShaderID, "u_Color"));
+  GLCall(unsigned int location = glGetUniformLocation(shader, "u_Color"));
   ASSERT(location != -1); // -1 is an error
 
   GLCall(glUniform4f(location, 0.8f, 0.3f, 0.8f, 1.0f));
@@ -150,7 +169,6 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
 
 
 }
-
 SdlWindow::~SdlWindow() {
   // If using SDL Renderer, destroy it. But if you’re purely using OpenGL, you might remove it.
   if (m_renderer) {
@@ -172,11 +190,15 @@ SdlWindow::~SdlWindow() {
         glDeleteProgram(shader);
         shader = 0;
     }
+  if (m_ib) {
+        delete m_ib;
+        m_ib = nullptr;
+    }
 
   SDL_Quit();
 }
-
-
+//
+//
 void SdlWindow::run() {
   while (m_isRunning) {
     processEvents(); 
@@ -185,7 +207,7 @@ void SdlWindow::run() {
   }
   GLCall(glDeleteProgram(shader));
 }
-
+//
 void SdlWindow::processEvents() {
 SDL_Event event;
   while (SDL_PollEvent(&event)) {
@@ -231,7 +253,7 @@ SDL_Event event;
     }
   }
 }
-
+//
 void SdlWindow::update() {
   // Update game/application logic here
   if (r > 1.0f) {
@@ -241,7 +263,7 @@ void SdlWindow::update() {
   }
   r += increment;
 }
-
+//
 void SdlWindow::render() {
   // Use GL calls instead of SDL’s renderer
   GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f)); //background
@@ -249,10 +271,12 @@ void SdlWindow::render() {
   GLCall(glClear(GL_COLOR_BUFFER_BIT));
   
   GLCall(glUseProgram(shader));
+  std::cout << "shader: " << shader << std::endl;
+  std::cout << "location: " << location << std::endl;
   GLCall(glUniform4f(location, r, 0.3f, 0.8f, 1.0f));
 
-  va.Bind();
-  m_ib.Bind();
+  va->Bind();
+  m_ib->Bind();
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
   //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr)); //macro assert for debugging
@@ -260,7 +284,7 @@ void SdlWindow::render() {
   // Swap buffers
   SDL_GL_SwapWindow(m_window);
 }
-
+//
 void SdlWindow::setFullscreen(bool fullscreen) {
     if (m_window) {
         m_isFullscreen = fullscreen;
@@ -283,7 +307,7 @@ void SdlWindow::setFullscreen(bool fullscreen) {
         }
     }
 }
-
+//
 unsigned int SdlWindow::compileShader(unsigned int type, const std::string& source) {
   GLCall(unsigned int id = glCreateShader(type));
   const char* src = source.c_str(); // <--- this string needs to exist when compiling/running
@@ -360,7 +384,7 @@ SdlWindow::ShaderProgramSource SdlWindow::parseShader(const std::string& filepat
 }
 
 void SdlWindow::GLClearError() {
-  //while (glGetError() != GL_NO_ERROR);
+  while (glGetError() != GL_NO_ERROR);
     
 }
 

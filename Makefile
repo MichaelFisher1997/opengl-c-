@@ -1,38 +1,38 @@
-CC=clang++
-current_directory=$(shell pwd)
+# Compiler and flags
+CXX := g++
+CXXFLAGS := -g #-O0 -Wall -Wextra
 
-FRAMEWORKS=-framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
+# Libraries
+LDFLAGS := -lSDL2 -lGLEW -lGL
 
-CFLAGS=-std=c++11
-CFLAGS+=-I$(current_directory)
-CFLAGS+=-I$(current_directory)/../external
+# Source and output directories
+SRC_DIR := src
+BUILD_DIR := build
+TARGET := $(BUILD_DIR)/opengl
 
-LDFLAGS=-L$(current_directory)/../lib
-LDFLAGS+=-lglfw3
-LDFLAGS+=-lGLEW
+# Source files and object files
+SRC := $(wildcard $(SRC_DIR)/*.cpp)
+OBJ := $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 
-SOURCES=$(wildcard *.cpp)
-OBJECTS=$(patsubst %.cpp, %.o, $(SOURCES))
+# Default target
+all: $(TARGET)
 
+# Build the target executable
+$(TARGET): $(OBJ)
+	mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
-%.o: %.cpp
-	$(CC) $(CFLAGS) -c -o $@ $^
+# Build object files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+	mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-default: debug
-
-app: $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(FRAMEWORKS) -o $@ $(OBJECTS)
-
-# Define debug and -g enables debug symbols
-debug: CFLAGS+=-DDEBUG -g
-debug: app
-
-release: app
-
-.PHONY: clean
+# Clean up build files
 clean:
-	rm -f *.o app
+	rm -rf $(BUILD_DIR)
 
-.PHONY: debugger
-debugger: debug
-	PATH=/usr/bin /usr/bin/lldb ./app
+# Run the application
+run: $(TARGET)
+	./$(TARGET)
+
+.PHONY: all clean run

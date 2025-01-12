@@ -56,7 +56,7 @@ private:
   float         r;
   SDL_GLContext m_glContext;
   float         increment; 
-  // temp shader stuff
+//  // temp shader stuff
   std::string vetexShader;
   std::string fragmentShader;
   unsigned int buffer;
@@ -64,9 +64,9 @@ private:
   unsigned int vao;
   unsigned int  shader;
   unsigned int   location;
-  VertexBufferLayout layout;
-  VertexArray va;
-  IndexBuffer m_ib;
+  VertexBufferLayout* layout;
+  VertexArray* va;
+  IndexBuffer* m_ib;
 
   // Private methods
   void processEvents();

@@ -13,6 +13,7 @@
 #include "IndexBuffer.h"
 #include "VertexBufferLayout.h"
 #include "VertexArray.h"
+#include "Shader.h"
 
 // Forward declaration of classes and structs if needed
 // class SomethingElse;
@@ -27,20 +28,18 @@ public:
 
   // Run the main loop
   void run();
-  unsigned int compileShader(unsigned int type, const std::string& source);
-  unsigned int createShader(const std::string& vetexShader, const std::string& fragmentShader);  
-  // for spliting our shaders
-  //struct ShaderProgramSource {
-  //  std::string VetexSource, FragmentSource;
-  struct ShaderProgramSource {
-    std::string VertexSource;
-    std::string FragmentSource;
-  };
-  ShaderProgramSource parseShader(const std::string& filepath);
+ // unsigned int compileShader(unsigned int type, const std::string& source);
+ // unsigned int createShader(const std::string& vetexShader, const std::string& fragmentShader);  
+ // // for spliting our shaders
+ // //struct ShaderProgramSource {
+ // //  std::string VetexSource, FragmentSource;
+ // struct ShaderProgramSource {
+ //   std::string VertexSource;
+ //   std::string FragmentSource;
+ // };
+ // ShaderProgramSource parseShader(const std::string& filepath);
 
   void setFullscreen(bool fullscreen);
-  void GLClearError();
-  bool GLLogCall();
   
 
 private:
@@ -57,11 +56,11 @@ private:
   SDL_GLContext m_glContext;
   float         increment; 
 //  // temp shader stuff
-  unsigned int  m_shader;
   GLint   m_Location;
   VertexArray* m_VA;
   IndexBuffer* m_IB;
   VertexBuffer* m_VB;
+  Shader* m_Shader;
 
   // Private methods
   void processEvents();

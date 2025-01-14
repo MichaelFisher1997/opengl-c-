@@ -1,9 +1,9 @@
 #pragma once
-#include "colormod.h"
 #include <iostream>
-
+#include <assert.h>
 #include <GL/glew.h>
 
+#include "colormod.h"
 
 #if defined(_MSC_VER)  // Microsoft Visual C++
     #include <intrin.h>
@@ -33,5 +33,8 @@
   ASSERT(GLLogCall())
 
 #define INT2VOIDP(i) (void*)(uintptr_t)(i)
+
+// Declare global functions
 void GLClearError();
 bool GLLogCall();
+

@@ -1,54 +1,19 @@
 #include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include "sdl.hpp"
 #include "VertexBufferLayout.h"
-#include "colormod.h" 
 #include <SDL2/SDL_video.h>
 #include <alloca.h>
 #include <cstdio>
 #include <iostream>
 #include <string>
-#include <fstream>
-//#include <iterator>
 #include <ostream>
 #include <string>
-#include <sstream>
 
 #include "Renderer.h"
 #include "VertexBuffer.h"
 #include "VertexArray.h"
 #include "IndexBuffer.h"
-
-#if defined(_MSC_VER)  // Microsoft Visual C++
-    #include <intrin.h>
-    #define DEBUG_BREAK() __debugbreak()
-#elif defined(__i386__) || defined(__x86_64__)
-    // Use inline assembly for x86/x86_64
-    #define DEBUG_BREAK() __asm__ volatile("int3")
-#else
-    // Fallback on non-x86 platforms
-    #include <signal.h>
-    #define DEBUG_BREAK() raise(SIGTRAP)
-#endif
-
-// ASSERT macro that shows file, line, and the failed expression
-#define ASSERT(x)                                                      \
-    do {                                                               \
-        if (!(x)) {                                                    \
-            std::cerr << "Assertion Failed: " << #x << '\n'           \
-                      << "File: " << __FILE__ << '\n'                  \
-                      << "Line: " << __LINE__ << std::endl;            \
-            DEBUG_BREAK();                                             \
-        }                                                              \
-    } while (false)
-
-#define GLCall(x) GLClearError();\
-  x;\
-  ASSERT(GLLogCall())
-
-
-struct ShaderProgramSource {
-  std::string VertexSource, FragmentSource;
-};
+#include "Shader.h"
 
 SdlWindow::SdlWindow(const char* title, int width, int height)
 : m_window(nullptr),
@@ -62,7 +27,7 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
       r(0.5f),
       m_glContext(nullptr),
       increment(0.05f),
-      m_shader(0),
+      m_Shader(nullptr),
       m_Location(-1),
       m_IB(nullptr),
       m_VB(nullptr),
@@ -145,27 +110,11 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   layout.Push<float>(2);
 
   m_VA->AddBuffer(*m_VB, layout);
+
+
+  m_Shader = new Shader("res/shaders/Basic.shader");
+  m_Shader->Bind();
   
-  ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
-
-  std::cout << "VERTEX" << std::endl << source.VertexSource << std::endl;
-  std::cout << "FRAGMENT" << std::endl << source.FragmentSource << std::endl;
-
-  unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
-  m_shader = shader;
-  std::cout << "shader: " << m_shader << std::endl;
-  std::cout << "shader: " << m_shader << std::endl;
-  GLCall(glUseProgram(m_shader));
-  
-  GLCall(m_Location = glGetUniformLocation(m_shader, "u_Color"));
-  ASSERT(m_Location != -1); // -1 is an error
-
-  GLCall(glUniform4f(m_Location, 0.8f, 0.3f, 0.8f, 1.0f));
-
-  GLCall(glBindVertexArray(0));
-  GLCall(glUseProgram(0));
-  GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
-  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 
 
 }
@@ -186,11 +135,8 @@ SdlWindow::~SdlWindow() {
       SDL_DestroyWindow(m_window);
       m_window = nullptr;
   }
-  if (m_shader) {
-        glDeleteProgram(m_shader);
-        m_shader = 0;
-    }
-
+  ////TODO
+  //some point check everything is being deleted
   SDL_Quit();
 }
 //
@@ -201,7 +147,6 @@ void SdlWindow::run() {
     update();
     render();
   }
-  GLCall(glDeleteProgram(m_shader));
 }
 //
 void SdlWindow::processEvents() {
@@ -266,11 +211,8 @@ void SdlWindow::render() {
   //
   GLCall(glClear(GL_COLOR_BUFFER_BIT));
   
-  GLCall(glUseProgram(m_shader));
-  std::cout << "m_shader: " << m_shader << std::endl;
-  std::cout << "location: " << m_Location << std::endl;
-  std::cout << "R: " << r << std::endl;
-  GLCall(glUniform4f(m_Location, r, 0.3f, 0.8f, 1.0f));
+  m_Shader->Bind();
+  m_Shader->SetUniform4f("u_Color", r, 0.3, 0.8, 1.0);
 
   m_VA->Bind();
   m_IB->Bind();
@@ -304,94 +246,3 @@ void SdlWindow::setFullscreen(bool fullscreen) {
         }
     }
 }
-//
-unsigned int SdlWindow::compileShader(unsigned int type, const std::string& source) {
-  GLCall(unsigned int id = glCreateShader(type));
-  const char* src = source.c_str(); // <--- this string needs to exist when compiling/running
-  GLCall(glShaderSource(id, 1, &src, nullptr));
-  GLCall(glCompileShader(id));
-  //TODO: error handling
-  int result;
-  GLCall(glGetShaderiv(id, GL_COMPILE_STATUS, &result));
-  if (result == GL_FALSE) {
-    int length;
-    GLCall(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
-    char* message = (char*)alloca(length * sizeof(char)); //do i need to deallocate this??
-    GLCall(glGetShaderInfoLog(id, length, &length, message));
-    std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex":"fragment") << " shader" << std::endl; // print out what type of shader it is
-    std::cout << message << std::endl;
-    GLCall(glDeleteShader(id));
-    return 0;
-
-  }
-  //
-  return id;
-
-  
-}
-
-unsigned int SdlWindow::createShader(const std::string& vertexShader, const std::string& fragmentShader) {
-  GLCall(unsigned int program = glCreateProgram());
-  unsigned int vs = compileShader(GL_VERTEX_SHADER, vertexShader);
-  unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragmentShader);
-  GLCall(glAttachShader(program, vs));
-  GLCall(glAttachShader(program, fs));
-
-  GLCall(glLinkProgram(program));
-  GLCall(glValidateProgram(program));
-
-  GLCall(glDeleteShader(vs));
-  GLCall(glDeleteShader(fs));
-  return program;
-
-}
-SdlWindow::ShaderProgramSource SdlWindow::parseShader(const std::string& filepath) {
-  //can be changed to c standard which is a bit faster
-  std::ifstream stream(filepath);
-  if (!stream.is_open()) {
-      std::cerr << "parseShader ERROR: Could not open file " << filepath << std::endl;
-      // Return empty (or handle however you prefer)
-      return {"", ""};
-  }
-
-  enum class ShaderType {
-    NONE = -1, VERTEX = 0, FRAGMENT = 1
-  };
-  std::string line;
-  std::stringstream ss[2]; //vertex - fragment
-  ShaderType type = ShaderType::NONE;
-
-  while (getline(stream, line)) {
-    if (line.find("#shader") != std::string::npos) {
-      if (line.find("vertex") != std::string::npos) {
-        type = ShaderType::VERTEX;
-        
-      }
-      else if (line.find("fragment") != std::string::npos) {
-        type = ShaderType::FRAGMENT;
-
-      }
-    }
-    else {
-      ss[(int)type] << line << '\n';
-    }
-  }
-  return {ss[0].str(), ss[1].str() };
-  
-}
-
-void SdlWindow::GLClearError() {
-  while (glGetError() != GL_NO_ERROR);
-    
-}
-
-bool SdlWindow::GLLogCall() {
-  Color::Modifier red(Color::FG_RED);
-  Color::Modifier def(Color::FG_DEFAULT);
-  while (GLenum error = glGetError()) {
-    std::cout << red << "[OpenGL Error] (" << error << ")" << def << std::endl; //if error, it will return a number, this needs to be converted to hex to then look up that value inn GL docs
-    return false;
-  }
-  return true;
-}
-

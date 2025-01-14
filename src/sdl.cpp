@@ -1,142 +1,91 @@
-#include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include "sdl.hpp"
 #include "VertexBufferLayout.h"
-#include "colormod.h" 
+#include <GL/glew.h> // Include GLEW before <SDL2/SDL.h>?
 #include <SDL2/SDL_video.h>
 #include <alloca.h>
 #include <cstdio>
 #include <iostream>
-#include <string>
-#include <fstream>
-//#include <iterator>
 #include <ostream>
 #include <string>
-#include <sstream>
 
-#include "Renderer.h"
-#include "VertexBuffer.h"
-#include "VertexArray.h"
 #include "IndexBuffer.h"
+#include "Renderer.h"
+#include "Shader.h"
+#include "VertexArray.h"
+#include "VertexBuffer.h"
 
-#if defined(_MSC_VER)  // Microsoft Visual C++
-    #include <intrin.h>
-    #define DEBUG_BREAK() __debugbreak()
-#elif defined(__i386__) || defined(__x86_64__)
-    // Use inline assembly for x86/x86_64
-    #define DEBUG_BREAK() __asm__ volatile("int3")
-#else
-    // Fallback on non-x86 platforms
-    #include <signal.h>
-    #define DEBUG_BREAK() raise(SIGTRAP)
-#endif
-
-// ASSERT macro that shows file, line, and the failed expression
-#define ASSERT(x)                                                      \
-    do {                                                               \
-        if (!(x)) {                                                    \
-            std::cerr << "Assertion Failed: " << #x << '\n'           \
-                      << "File: " << __FILE__ << '\n'                  \
-                      << "Line: " << __LINE__ << std::endl;            \
-            DEBUG_BREAK();                                             \
-        }                                                              \
-    } while (false)
-
-#define GLCall(x) GLClearError();\
-  x;\
-  ASSERT(GLLogCall())
-
-
-struct ShaderProgramSource {
-  std::string VertexSource, FragmentSource;
-};
-
-SdlWindow::SdlWindow(const char* title, int width, int height)
-: m_window(nullptr),
-      m_renderer(nullptr),
-      m_isRunning(false),
-      m_isFullscreen(false),
-      m_width(width),
-      m_height(height),
-      m_windowedWidth(width),
-      m_windowedHeight(height),
-      r(0.5f),
-      m_glContext(nullptr),
-      increment(0.05f),
-      m_shader(0),
-      m_Location(-1),
-      m_IB(nullptr),
-      m_VB(nullptr),
-      m_VA(nullptr)
-{
+SdlWindow::SdlWindow(const char *title, int width, int height)
+    : m_window(nullptr), m_renderer(nullptr), m_isRunning(false),
+      m_isFullscreen(false), m_width(width), m_height(height),
+      m_windowedWidth(width), m_windowedHeight(height), r(0.5f),
+      m_glContext(nullptr), increment(0.05f), m_Shader(nullptr), m_Location(-1),
+      m_IB(nullptr), m_VB(nullptr), m_VA(nullptr) {
 
   std::cout << "Step 0: hellow world" << std::endl;
 
   // 1. Set attributes
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
   std::cout << "Step 1: SDL_GL_SetAttribute completed" << std::endl;
   // 2. Create the window with OpenGL flag
-    m_window = SDL_CreateWindow(title,
-      SDL_WINDOWPOS_CENTERED,
-      SDL_WINDOWPOS_CENTERED,
-      width,
-      height,
-      SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN| SDL_WINDOW_RESIZABLE);
+  m_window = SDL_CreateWindow(
+      title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height,
+      SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
   if (!m_window) {
-      std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
-      return;
+    std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
+    return;
   }
   std::cout << "Step 2: SDL_CreateWindow completed" << std::endl;
 
   m_glContext = SDL_GL_CreateContext(m_window);
   if (!m_glContext) {
-      std::cerr << "Failed to create GL context: " << SDL_GetError() << std::endl;
-      return;
+    std::cerr << "Failed to create GL context: " << SDL_GetError() << std::endl;
+    return;
   }
   std::cout << "Step 3: SDL_GL_CreateContext completed" << std::endl;
 
   if (SDL_GL_MakeCurrent(m_window, m_glContext) != 0) {
-      std::cerr << "Failed to make GL context current: " << SDL_GetError() << std::endl;
-      return;
+    std::cerr << "Failed to make GL context current: " << SDL_GetError()
+              << std::endl;
+    return;
   }
   std::cout << "Step 4: SDL_GL_MakeCurrent completed" << std::endl;
 
-  #ifndef __APPLE__
+#ifndef __APPLE__
   glewExperimental = GL_TRUE;
   GLenum glewErr = glewInit();
   if (glewErr != GLEW_OK) {
-      std::cerr << "Failed to init GLEW: " << glewGetErrorString(glewErr) << std::endl;
-      return;
+    std::cerr << "Failed to init GLEW: " << glewGetErrorString(glewErr)
+              << std::endl;
+    return;
   }
   std::cout << "Step 5: GLEW initialized successfully" << std::endl;
   glGetError(); // Clear GLEW's initial error
-  #endif
+#endif
 
   std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-  std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+  std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION)
+            << std::endl;
   std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
 
-
   // 5. Set vsync (optional)
-  SDL_GL_SetSwapInterval(1); //Vsync
+  SDL_GL_SetSwapInterval(1); // Vsync
 
   // 6. Mark as running
   m_isRunning = true;
 
-  float positions[] = { // vertex for a triangle
-    //x,y
-   -0.5f, -0.5f, // 0 
-    0.5f, -0.5f, // 1
-    0.5f,  0.5f, //2
-    -0.5f,  0.5f // 3
-  }; 
-
-  unsigned int indices[] = {
-      0, 1, 2,
-      2, 3, 0
+  float positions[] = {
+      // vertex for a triangle
+      // x,y
+      -0.5f, -0.5f, // 0
+      0.5f,  -0.5f, // 1
+      0.5f,  0.5f,  // 2
+      -0.5f, 0.5f   // 3
   };
+
+  unsigned int indices[] = {0, 1, 2, 2, 3, 0};
   m_VA = new VertexArray();
   m_VB = new VertexBuffer(positions, 4 * 2 * sizeof(float));
   m_IB = new IndexBuffer(indices, 6);
@@ -145,67 +94,44 @@ SdlWindow::SdlWindow(const char* title, int width, int height)
   layout.Push<float>(2);
 
   m_VA->AddBuffer(*m_VB, layout);
-  
-  ShaderProgramSource source = parseShader("res/shaders/Basic.shader");
 
-  std::cout << "VERTEX" << std::endl << source.VertexSource << std::endl;
-  std::cout << "FRAGMENT" << std::endl << source.FragmentSource << std::endl;
-
-  unsigned int shader = createShader(source.VertexSource, source.FragmentSource);
-  m_shader = shader;
-  std::cout << "shader: " << m_shader << std::endl;
-  std::cout << "shader: " << m_shader << std::endl;
-  GLCall(glUseProgram(m_shader));
-  
-  GLCall(m_Location = glGetUniformLocation(m_shader, "u_Color"));
-  ASSERT(m_Location != -1); // -1 is an error
-
-  GLCall(glUniform4f(m_Location, 0.8f, 0.3f, 0.8f, 1.0f));
-
-  GLCall(glBindVertexArray(0));
-  GLCall(glUseProgram(0));
-  GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
-  GLCall(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
-
-
+  m_Shader = new Shader("res/shaders/Basic.shader");
+  m_Shader->Bind();
 }
 SdlWindow::~SdlWindow() {
-  // If using SDL Renderer, destroy it. But if you’re purely using OpenGL, you might remove it.
+  // If using SDL Renderer, destroy it. But if you’re purely using OpenGL, you
+  // might remove it.
   if (m_renderer) {
-      SDL_DestroyRenderer(m_renderer);
-      m_renderer = nullptr;
+    SDL_DestroyRenderer(m_renderer);
+    m_renderer = nullptr;
   }
 
   // Delete the OpenGL context
   if (m_glContext) {
-      SDL_GL_DeleteContext(m_glContext);
-      m_glContext = nullptr;
+    SDL_GL_DeleteContext(m_glContext);
+    m_glContext = nullptr;
   }
 
   if (m_window) {
-      SDL_DestroyWindow(m_window);
-      m_window = nullptr;
+    SDL_DestroyWindow(m_window);
+    m_window = nullptr;
   }
-  if (m_shader) {
-        glDeleteProgram(m_shader);
-        m_shader = 0;
-    }
-
+  ////TODO
+  // some point check everything is being deleted
   SDL_Quit();
 }
 //
 //
 void SdlWindow::run() {
   while (m_isRunning) {
-    processEvents(); 
+    processEvents();
     update();
     render();
   }
-  GLCall(glDeleteProgram(m_shader));
 }
 //
 void SdlWindow::processEvents() {
-SDL_Event event;
+  SDL_Event event;
   while (SDL_PollEvent(&event)) {
     if (event.type == SDL_QUIT) {
       m_isRunning = false;
@@ -222,22 +148,21 @@ SDL_Event event;
       }
       if (event.key.keysym.sym == SDLK_ESCAPE) {
         std::cout << "Bye!" << std::endl;
-        m_isRunning = false; //exit application
+        m_isRunning = false; // exit application
       }
-    }
-    else if (event.type == SDL_WINDOWEVENT) {
+    } else if (event.type == SDL_WINDOWEVENT) {
       if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
         // SDL gives the new width/height in event.window.data1/data2
-        int newWidth  = event.window.data1;
+        int newWidth = event.window.data1;
         int newHeight = event.window.data2;
 
         // Update your internal width/height (if you keep track)
-        m_width  = newWidth;
+        m_width = newWidth;
         m_height = newHeight;
         // If we are in windowed mode, update the "windowed" size.
         if (!m_isFullscreen) {
-            m_windowedWidth  = newWidth;
-            m_windowedHeight = newHeight;
+          m_windowedWidth = newWidth;
+          m_windowedHeight = newHeight;
         }
 
         // Update the OpenGL viewport
@@ -262,136 +187,43 @@ void SdlWindow::update() {
 //
 void SdlWindow::render() {
   // Use GL calls instead of SDL’s renderer
-  GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f)); //background
+  GLCall(glClearColor(0.0f, 0.0f, 0.0f, 1.0f)); // background
   //
   GLCall(glClear(GL_COLOR_BUFFER_BIT));
-  
-  GLCall(glUseProgram(m_shader));
-  std::cout << "m_shader: " << m_shader << std::endl;
-  std::cout << "location: " << m_Location << std::endl;
-  std::cout << "R: " << r << std::endl;
-  GLCall(glUniform4f(m_Location, r, 0.3f, 0.8f, 1.0f));
+
+  m_Shader->Bind();
+  m_Shader->SetUniform4f("u_Color", r, 0.3, 0.8, 1.0);
 
   m_VA->Bind();
   m_IB->Bind();
   // TODO: Draw with OpenGL here (shaders, triangles, etc.)
-  //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-  GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr)); //macro assert for debugging
-  
+  // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+  GLCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT,
+                        nullptr)); // macro assert for debugging
+
   // Swap buffers
   SDL_GL_SwapWindow(m_window);
 }
 //
 void SdlWindow::setFullscreen(bool fullscreen) {
-    if (m_window) {
-        m_isFullscreen = fullscreen;
-        if (m_isFullscreen) {
-            // Going TO fullscreen:
-            // (Optional) store the current size again, in case it changed
-            m_windowedWidth  = m_width;
-            m_windowedHeight = m_height;
+  if (m_window) {
+    m_isFullscreen = fullscreen;
+    if (m_isFullscreen) {
+      // Going TO fullscreen:
+      // (Optional) store the current size again, in case it changed
+      m_windowedWidth = m_width;
+      m_windowedHeight = m_height;
 
-            SDL_SetWindowFullscreen(m_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-        } else {
-            // Returning FROM fullscreen:
-            SDL_SetWindowFullscreen(m_window, 0); // return to windowed
-            // Now restore the window’s old size
-            SDL_SetWindowSize(m_window, m_windowedWidth, m_windowedHeight);
+      SDL_SetWindowFullscreen(m_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    } else {
+      // Returning FROM fullscreen:
+      SDL_SetWindowFullscreen(m_window, 0); // return to windowed
+      // Now restore the window’s old size
+      SDL_SetWindowSize(m_window, m_windowedWidth, m_windowedHeight);
 
-            // Update m_width, m_height so they reflect the new (restored) size
-            m_width  = m_windowedWidth;
-            m_height = m_windowedHeight;
-        }
-    }
-}
-//
-unsigned int SdlWindow::compileShader(unsigned int type, const std::string& source) {
-  GLCall(unsigned int id = glCreateShader(type));
-  const char* src = source.c_str(); // <--- this string needs to exist when compiling/running
-  GLCall(glShaderSource(id, 1, &src, nullptr));
-  GLCall(glCompileShader(id));
-  //TODO: error handling
-  int result;
-  GLCall(glGetShaderiv(id, GL_COMPILE_STATUS, &result));
-  if (result == GL_FALSE) {
-    int length;
-    GLCall(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
-    char* message = (char*)alloca(length * sizeof(char)); //do i need to deallocate this??
-    GLCall(glGetShaderInfoLog(id, length, &length, message));
-    std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex":"fragment") << " shader" << std::endl; // print out what type of shader it is
-    std::cout << message << std::endl;
-    GLCall(glDeleteShader(id));
-    return 0;
-
-  }
-  //
-  return id;
-
-  
-}
-
-unsigned int SdlWindow::createShader(const std::string& vertexShader, const std::string& fragmentShader) {
-  GLCall(unsigned int program = glCreateProgram());
-  unsigned int vs = compileShader(GL_VERTEX_SHADER, vertexShader);
-  unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fragmentShader);
-  GLCall(glAttachShader(program, vs));
-  GLCall(glAttachShader(program, fs));
-
-  GLCall(glLinkProgram(program));
-  GLCall(glValidateProgram(program));
-
-  GLCall(glDeleteShader(vs));
-  GLCall(glDeleteShader(fs));
-  return program;
-
-}
-SdlWindow::ShaderProgramSource SdlWindow::parseShader(const std::string& filepath) {
-  //can be changed to c standard which is a bit faster
-  std::ifstream stream(filepath);
-  if (!stream.is_open()) {
-      std::cerr << "parseShader ERROR: Could not open file " << filepath << std::endl;
-      // Return empty (or handle however you prefer)
-      return {"", ""};
-  }
-
-  enum class ShaderType {
-    NONE = -1, VERTEX = 0, FRAGMENT = 1
-  };
-  std::string line;
-  std::stringstream ss[2]; //vertex - fragment
-  ShaderType type = ShaderType::NONE;
-
-  while (getline(stream, line)) {
-    if (line.find("#shader") != std::string::npos) {
-      if (line.find("vertex") != std::string::npos) {
-        type = ShaderType::VERTEX;
-        
-      }
-      else if (line.find("fragment") != std::string::npos) {
-        type = ShaderType::FRAGMENT;
-
-      }
-    }
-    else {
-      ss[(int)type] << line << '\n';
+      // Update m_width, m_height so they reflect the new (restored) size
+      m_width = m_windowedWidth;
+      m_height = m_windowedHeight;
     }
   }
-  return {ss[0].str(), ss[1].str() };
-  
 }
-
-void SdlWindow::GLClearError() {
-  while (glGetError() != GL_NO_ERROR);
-    
-}
-
-bool SdlWindow::GLLogCall() {
-  Color::Modifier red(Color::FG_RED);
-  Color::Modifier def(Color::FG_DEFAULT);
-  while (GLenum error = glGetError()) {
-    std::cout << red << "[OpenGL Error] (" << error << ")" << def << std::endl; //if error, it will return a number, this needs to be converted to hex to then look up that value inn GL docs
-    return false;
-  }
-  return true;
-}
-
